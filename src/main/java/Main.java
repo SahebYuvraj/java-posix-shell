@@ -19,6 +19,14 @@ public class Main {
                 System.out.println(message);
                 continue;
             }
+            if (command.startsWith("type")){
+                String typeArg = command.substring(5).trim();
+                if (typeArg.equals("echo")|| typeArg.equals("type")|| typeArg.equals("exit")){
+                    System.out.println(typeArg + " is a built-in command");
+                } else {
+                    System.out.println(typeArg + " is an unknown command");
+                }
+            }
             System.out.println(command+": command not found");
 
             

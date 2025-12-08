@@ -23,6 +23,7 @@ public class Main {
     private static final String ECHO_COMMAND = "echo";
     private static final String TYPE_COMMAND = "type";
     private static final String PWD_COMMAND = "pwd";
+   
 
     public static void main(String[] args) throws Exception {
         // REPL - read eval print loop
@@ -88,7 +89,7 @@ public class Main {
             return;
         }
         String secondaryCommand = commandParts[1];
-        if(secondaryCommand.equals(ECHO_COMMAND) || secondaryCommand.equals(TYPE_COMMAND) || secondaryCommand.equals(EXIT_COMMAND)){
+        if(secondaryCommand.equals(ECHO_COMMAND) || secondaryCommand.equals(TYPE_COMMAND) || secondaryCommand.equals(EXIT_COMMAND)|| secondaryCommand.equals(PWD_COMMAND)){
             // if statment seems a little redundant but its ok for now.
             System.out.println(secondaryCommand + " is a shell builtin");
         } else {
@@ -122,6 +123,7 @@ public class Main {
             File commandFile = new File (dir, commandParts[0]);
             if(commandFile.exists() && commandFile.canExecute()){
                 try {
+
                     Process process = Runtime.getRuntime().exec(commandParts);
                     //output this
                     process.getInputStream().transferTo(System.out);
@@ -141,7 +143,7 @@ public class Main {
     }
 
     private static void  pwd_command(){
-        // so i would have to check paths and the check which is mine and return absolute
+        // so the shell always has a current working directory tracked by the OS.
         System.out.println(System.getProperty("user.dir"));
     }
 

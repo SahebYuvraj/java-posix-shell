@@ -1,4 +1,5 @@
 import java.io.File;
+import java.util.List;
 import java.util.Scanner;
 
 public class Main {
@@ -23,6 +24,7 @@ public class Main {
     private static final String ECHO_COMMAND = "echo";
     private static final String TYPE_COMMAND = "type";
     private static final String PWD_COMMAND = "pwd";
+    private static final List<String> shellBullitin = List.of(PWD_COMMAND,EXIT_COMMAND,ECHO_COMMAND,TYPE_COMMAND);
    
 
     public static void main(String[] args) throws Exception {
@@ -89,7 +91,8 @@ public class Main {
             return;
         }
         String secondaryCommand = commandParts[1];
-        if(secondaryCommand.equals(ECHO_COMMAND) || secondaryCommand.equals(TYPE_COMMAND) || secondaryCommand.equals(EXIT_COMMAND)|| secondaryCommand.equals(PWD_COMMAND)){
+        if(shellBullitin.contains(secondaryCommand)){
+        // if(secondaryCommand.equals(ECHO_COMMAND) || secondaryCommand.equals(TYPE_COMMAND) || secondaryCommand.equals(EXIT_COMMAND)|| secondaryCommand.equals(PWD_COMMAND)){
             // if statment seems a little redundant but its ok for now.
             System.out.println(secondaryCommand + " is a shell builtin");
         } else {

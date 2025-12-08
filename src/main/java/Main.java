@@ -22,6 +22,7 @@ public class Main {
     private static final String EXIT_COMMAND = "exit";
     private static final String ECHO_COMMAND = "echo";
     private static final String TYPE_COMMAND = "type";
+    private static final String PWD_COMMAND = "pwd";
 
     public static void main(String[] args) throws Exception {
         // REPL - read eval print loop
@@ -48,15 +49,18 @@ public class Main {
                 case TYPE_COMMAND:
                     typeCommand(commandParts);
                     break;
+                case PWD_COMMAND:
+                    pwd_command();
+                    break;
                 default:
                     externalCommnad(commandParts);
-                    // System.out.println(command + ": command not found");
                     break;
             }
             
         }
       
     }
+   
 
     private static void exitCommand(String[] commandParts) {
         if (commandParts.length > 1) {
@@ -108,9 +112,11 @@ public class Main {
     }
     
     private static void externalCommnad(String[] commandParts){
+
         String executable = commandParts[0];
         String pathEnv = System.getenv("PATH"); // im assuming this gets path from 
         String[] paths = pathEnv.split(System.getProperty("path.separator"));
+
         for(String path:paths){
             File dir = new File(path);
             File commandFile = new File (dir, commandParts[0]);
@@ -129,13 +135,14 @@ public class Main {
                     return;
                 }
             }
-            
         }
-        System.out.println(executable + ": command not found");
-            
-        
+
+        System.out.println(executable + ": command not found");         
     }
 
-
+    private static void  pwd_command(){
+        // so i would have to check paths and the check which is mine and return absolute
+        System.out.println(System.getProperty("user.dir"));
+    }
 
 }

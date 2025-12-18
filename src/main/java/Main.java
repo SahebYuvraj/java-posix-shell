@@ -203,14 +203,17 @@ public class Main {
     }
 
     private static void parentrelativedir(String path){
+        int count = 2;
         while (path.startsWith("../")){
             String current_directory = System.getProperty("user.dir");
             File currDirFile = new File(current_directory);
             String parent_directory = currDirFile.getParent();
             String new_path = parent_directory + path.substring(2);
             path = new_path;
+            count+=3;
+            
         }
-
+        String new_path = path + path.substring(count);
         absolutepath(path);
 
 

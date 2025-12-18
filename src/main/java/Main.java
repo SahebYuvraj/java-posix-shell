@@ -176,11 +176,7 @@ public class Main {
             absolutepath(new_path);
             }
         else if (path.startsWith("../")){ 
-            String current_directory = System.getProperty("user.dir");
-            File currDirFile = new File(current_directory);
-            String parent_directory = currDirFile.getParent();
-            String new_path = parent_directory + path.substring(2);;
-            absolutepath(new_path);
+            parentrelativedir(path);
             //previous directory
         }
         else if (path.startsWith("~")){
@@ -203,6 +199,20 @@ public class Main {
             return;
         }
         System.setProperty("user.dir", dir.getAbsolutePath()); // this sets the system property to absolute directory
+
+    }
+
+    private static void parentrelativedir(String path){
+        while (path.startsWith("../")){
+            String current_directory = System.getProperty("user.dir");
+            File currDirFile = new File(current_directory);
+            String parent_directory = currDirFile.getParent();
+            String new_path = parent_directory + path.substring(2);
+            path = new_path;
+        }
+
+        absolutepath(path);
+
 
     }
 

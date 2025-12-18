@@ -166,11 +166,11 @@ public class Main {
         if(path.startsWith("~") || path.startsWith("~/")){
             // path = System.getProperty("user.home") ;}
             String home = System.getenv("HOME");
-            if (home == null) {
-                System.out.println("cd: HOME not set");
-                return;
-    }
-            path = home + path.substring(1);
+            // if (home == null) {
+            //     System.out.println("cd: HOME not set");
+            //     return;
+            // }
+            path = home + path.substring(1);}
         
             // expand ~ to home directory this would fail in java since it doesnt expand to home env vairable
 

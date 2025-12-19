@@ -197,6 +197,7 @@ public class Main {
         List<String> parts = new ArrayList<>();
         StringBuilder currentPart = new StringBuilder();
         boolean insideSingleQuote = false;
+        boolean insideDoubleQuote = false;
 
         for(int i= 0; i < input.length(); i++){
             char c = input.charAt(i);
@@ -206,7 +207,12 @@ public class Main {
                 continue;
             }
 
-            if(c == ' ' && !insideSingleQuote){
+            if(c == '"' && !insideSingleQuote){
+                insideDoubleQuote = !insideDoubleQuote;
+                continue;
+            }
+
+            if(c == ' ' && !insideSingleQuote && !insideDoubleQuote){
                 if(currentPart.length() > 0){
                     parts.add(currentPart.toString());
                     currentPart.setLength(0);

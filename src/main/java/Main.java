@@ -216,6 +216,23 @@ public class Main {
                 continue;
             }
 
+            // basically check / escape character
+            if(c == '\\'){
+                if(i + 1 < input.length()){
+                    char nextChar = input.charAt(i + 1);
+                    if(insideSingleQuote){
+                        currentPart.append(c);
+                    } else {
+                        currentPart.append(nextChar);
+                        i++; // skip next char as its escaped
+                        continue;
+                    }
+                } else {
+                    currentPart.append(c);
+                }
+                continue;
+            }
+
             if(c == ' ' && !insideSingleQuote && !insideDoubleQuote){
                 if(currentPart.length() > 0){
                     parts.add(currentPart.toString());

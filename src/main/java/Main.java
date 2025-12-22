@@ -284,7 +284,7 @@ public class Main {
                 }
 
                 stderrFile = file.toString();
-                continue;
+                break;
 
                 
             }

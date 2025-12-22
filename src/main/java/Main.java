@@ -270,7 +270,7 @@ public class Main {
 
                 i++;
                 i++;
-                if (i < input.length() && input.charAt(i + 1) == '>') {
+                if (i < input.length() && input.charAt(i) == '>') {
                     appendStderr = true;
                     i++; // skip second '>'
                 }

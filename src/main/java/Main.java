@@ -60,10 +60,16 @@ public class Main {
             PrintStream out = System.out;
             PrintStream err = System.err;
             if (parsed.redirectStdout) {
-                out = new PrintStream(new FileOutputStream(parsed.redirectFile));
+                // out = new PrintStream(new FileOutputStream(parsed.redirectFile));
+                File file = new File(parsed.redirectFile);
+                if (file.getParentFile() != null) file.getParentFile().mkdirs(); 
+                out = new PrintStream(new FileOutputStream(file));
             }
             if (parsed.redirectStderr) {
-                err = new PrintStream(new FileOutputStream(parsed.stderrFile));
+                // err = new PrintStream(new FileOutputStream(parsed.stderrFile));
+                File file = new File(parsed.stderrFile);
+                if (file.getParentFile() != null) file.getParentFile().mkdirs();
+                err = new PrintStream(new FileOutputStream(file));
             }
 
             // Evaluate command
@@ -88,8 +94,9 @@ public class Main {
                     externalCommand(commandParts,out,err);
                     break;
             }
-
-             if (out != System.out) {out.close();}
+            out.flush();
+            err.flush();
+            if (out != System.out) {out.close();}
             if (err != System.err) {err.close();}
             
         }

@@ -60,16 +60,16 @@ public class Main {
             PrintStream out = System.out;
             PrintStream err = System.err;
             if (parsed.redirectStdout) {
-                // out = new PrintStream(new FileOutputStream(parsed.redirectFile));
-                File file = new File(parsed.redirectFile);
-                if (file.getParentFile() != null) file.getParentFile().mkdirs(); 
-                out = new PrintStream(new FileOutputStream(file));
+                out = new PrintStream(new FileOutputStream(parsed.redirectFile));
+                // File file = new File(parsed.redirectFile);
+                // if (file.getParentFile() != null) file.getParentFile().mkdirs(); 
+                // out = new PrintStream(new FileOutputStream(file));
             }
             if (parsed.redirectStderr) {
-                // err = new PrintStream(new FileOutputStream(parsed.stderrFile));
-                File file = new File(parsed.stderrFile);
-                if (file.getParentFile() != null) file.getParentFile().mkdirs();
-                err = new PrintStream(new FileOutputStream(file));
+                err = new PrintStream(new FileOutputStream(parsed.stderrFile));
+                // File file = new File(parsed.stderrFile);
+                // if (file.getParentFile() != null) file.getParentFile().mkdirs();
+                // err = new PrintStream(new FileOutputStream(file));
             }
 
             // Evaluate command
@@ -268,14 +268,15 @@ public class Main {
 
             if (!insideDoubleQuote && !insideSingleQuote && (c == '2' && i + 1 < input.length() && input.charAt(i + 1) == '>')){
                 redirectStderr = true;
-                i++; // skip '>'
-                while (i < input.length() && input.charAt(i) == ' ') i++;
+                if(c == 2) i++; // skip '>'
 
-               
+             
                 if (currentPart.length() > 0) {
                     parts.add(currentPart.toString());
                     currentPart.setLength(0);
                 }
+                i++;
+                while (i < input.length() && input.charAt(i) == ' ') i++;
 
                 StringBuilder file = new StringBuilder();
                 while (i < input.length() && input.charAt(i) != ' ') {

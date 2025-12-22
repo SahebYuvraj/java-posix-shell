@@ -156,7 +156,7 @@ public class Main {
 
                     Process process = Runtime.getRuntime().exec(commandParts);
                     //output this
-                    process.getInputStream().transferTo(System.out);
+                    process.getInputStream().transferTo(out);
                     process.getErrorStream().transferTo(System.err);
 
                     process.waitFor();

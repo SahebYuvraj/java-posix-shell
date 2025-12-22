@@ -88,6 +88,9 @@ public class Main {
                     externalCommand(commandParts,out,err);
                     break;
             }
+
+             if (out != System.out) {out.close();}
+            if (err != System.err) {err.close();}
             
         }
       

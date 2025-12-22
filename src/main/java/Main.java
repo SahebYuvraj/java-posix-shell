@@ -12,6 +12,7 @@ public class Main {
         boolean redirectStdout;
         boolean redirectStderr;
         boolean appendStdout;
+        boolean appendStderr;
         String redirectFile;
         String stderrFile;
     }
@@ -64,7 +65,7 @@ public class Main {
                 out = new PrintStream(new FileOutputStream(parsed.redirectFile, parsed.appendStdout));
             }
             if (parsed.redirectStderr) {
-                err = new PrintStream(new FileOutputStream(parsed.stderrFile));
+                err = new PrintStream(new FileOutputStream(parsed.stderrFile, parsed.appendStderr));
             }
 
             // Evaluate command
@@ -240,6 +241,7 @@ public class Main {
         boolean redirectStderr = false;
         String stderrFile = null;
         boolean appendStdout = false;
+        boolean appendStderr = false;
 
         for(int i= 0; i < input.length(); i++){
             char c = input.charAt(i);
@@ -268,6 +270,11 @@ public class Main {
 
                 i++;
                 i++;
+                if (i < input.length() && input.charAt(i + 1) == '>') {
+                    appendStderr = true;
+                    i++; // skip second '>'
+                }
+                
                 while (i < input.length() && input.charAt(i) == ' ') i++;
 
                 StringBuilder file = new StringBuilder();
@@ -287,7 +294,7 @@ public class Main {
                 redirectStdout = true;
                 if (c == '1') i++;
 
-                 if (i + 1 < input.length() && input.charAt(i + 1) == '>') {
+                if (i + 1 < input.length() && input.charAt(i + 1) == '>') {
                 appendStdout = true;
                 i++; // skip second '>'
                 }
@@ -353,6 +360,7 @@ public class Main {
         pc.redirectStderr = redirectStderr;
         pc.stderrFile = stderrFile;
         pc.appendStdout = appendStdout;
+        pc.appendStderr = appendStderr;
         return pc;
     }
    

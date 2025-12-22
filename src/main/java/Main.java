@@ -11,6 +11,7 @@ public class Main {
         String[] args;
         boolean redirectStdout;
         boolean redirectStderr;
+        boolean appendStdout;
         String redirectFile;
         String stderrFile;
     }
@@ -60,16 +61,10 @@ public class Main {
             PrintStream out = System.out;
             PrintStream err = System.err;
             if (parsed.redirectStdout) {
-                out = new PrintStream(new FileOutputStream(parsed.redirectFile));
-                // File file = new File(parsed.redirectFile);
-                // if (file.getParentFile() != null) file.getParentFile().mkdirs(); 
-                // out = new PrintStream(new FileOutputStream(file));
+                out = new PrintStream(new FileOutputStream(parsed.redirectFile, parsed.appendStdout));
             }
             if (parsed.redirectStderr) {
                 err = new PrintStream(new FileOutputStream(parsed.stderrFile));
-                // File file = new File(parsed.stderrFile);
-                // if (file.getParentFile() != null) file.getParentFile().mkdirs();
-                // err = new PrintStream(new FileOutputStream(file));
             }
 
             // Evaluate command
@@ -172,10 +167,6 @@ public class Main {
             File commandFile = new File (dir, commandParts[0]);
             if(commandFile.exists() && commandFile.canExecute()){
                 try {
-
-                    // String[] execArgs = commandParts.clone();
-                    // execArgs[0] = commandFile.getAbsolutePath();
-                    // Process process = Runtime.getRuntime().exec(execArgs);
                     Process process = Runtime.getRuntime().exec(commandParts);
                     //output this
                     process.getInputStream().transferTo(out);
@@ -248,6 +239,7 @@ public class Main {
         String redirectFile = null;
         boolean redirectStderr = false;
         String stderrFile = null;
+        boolean appendStdout = false;
 
         for(int i= 0; i < input.length(); i++){
             char c = input.charAt(i);
@@ -294,6 +286,11 @@ public class Main {
 
                 redirectStdout = true;
                 if (c == '1') i++;
+
+                 if (i + 1 < input.length() && input.charAt(i + 1) == '>') {
+                appendStdout = true;
+                i++; // skip second '>'
+                }
 
                 if (currentPart.length() > 0) {
                     parts.add(currentPart.toString());
@@ -355,6 +352,7 @@ public class Main {
         pc.redirectFile = redirectFile;
         pc.redirectStderr = redirectStderr;
         pc.stderrFile = stderrFile;
+        pc.appendStdout = appendStdout;
         return pc;
     }
    

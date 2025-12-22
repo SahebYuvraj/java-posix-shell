@@ -41,7 +41,7 @@ public class Main {
     public static void main(String[] args) throws Exception {
         // REPL - read eval print loop
 
-        Scanner scanner = new Scanner(System.in);
+        
         while(true){
             // Display prompt
             System.out.print(PROMPT);
@@ -79,7 +79,7 @@ public class Main {
                     cd_command(commandParts);
                     break;
                 default:
-                    externalCommnad(commandParts,out);
+                    externalCommand(commandParts,out);
                     break;
             }
             
@@ -142,7 +142,7 @@ public class Main {
         }
     }
     
-    private static void externalCommnad(String[] commandParts, PrintStream out){
+    private static void externalCommand(String[] commandParts, PrintStream out){
 
         String executable = commandParts[0];
         String pathEnv = System.getenv("PATH"); // im assuming this gets path from 

@@ -5,6 +5,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
 
+public class Main {
+
+    static class ParsedCommand{
+        String[] args;
+        boolean redirectStdout;
+        String redirectFile;
+    }
+
     /*
     Using static: (learning)
     ✔ saves memory
@@ -21,50 +29,25 @@ import java.util.Scanner;
     3) Performance (small advantage)
      */
 
-    /* 
-    mistakes I made - scanner is being created in the loop - should be outside (leaks)
-    Priority 1 — Separate parsing & execution completely
-    Priority 2 - Clean naming conventions
-     */
-
-    /*
-    NAMING CONVENTIONS USED
-    classes - PascalCase
-    methods - camelCase
-    constants - UPPER_SNAKE_CASE
-    variables - camelCase
-    Boolean variables - isSomething, hasSomething (verb like)
-     */
-
-    /*
-    can make an inner class and then have attributes to mark file location and command.
-     */
-
-public class Main {
-
-    static class ParsedCommand {
-        String[] args;
-        boolean redirectStdout;
-        String redirectFile;
-    }
-
     private static final String PROMPT = "$ ";
     private static final String EXIT_COMMAND = "exit";
     private static final String ECHO_COMMAND = "echo";
     private static final String TYPE_COMMAND = "type";
     private static final String PWD_COMMAND = "pwd";
     private static final String CD_COMMAND = "cd";
-
-    private static final List<String> SHELL_BUILTINS =
-            List.of(EXIT_COMMAND, ECHO_COMMAND, TYPE_COMMAND, PWD_COMMAND, CD_COMMAND);
+    private static final List<String> shellBullitin = List.of(PWD_COMMAND,EXIT_COMMAND,ECHO_COMMAND,TYPE_COMMAND,CD_COMMAND);
+   
 
     public static void main(String[] args) throws Exception {
+        // REPL - read eval print loop
 
         Scanner scanner = new Scanner(System.in);
-
-        while (true) {
+        while(true){
+            // Display prompt
             System.out.print(PROMPT);
 
+            // Read user input -- all inputs are treated as unknown commands
+            
             String input = scanner.nextLine().trim();
             if (input.isEmpty()) continue;
 
@@ -77,10 +60,12 @@ public class Main {
                 out = new PrintStream(new FileOutputStream(parsed.redirectFile));
             }
 
+            // Evaluate command
             switch (command) {
                 case EXIT_COMMAND:
+                    // need to write logic to check if its the only work in the list
                     exitCommand(commandParts);
-                    break;
+                    break; 
                 case ECHO_COMMAND:
                     echoCommand(commandParts, out);
                     break;
@@ -88,128 +73,194 @@ public class Main {
                     typeCommand(commandParts, out);
                     break;
                 case PWD_COMMAND:
-                    pwdCommand(out);
+                    pwd_command(out);
                     break;
                 case CD_COMMAND:
-                    cdCommand(commandParts);
+                    cd_command(commandParts);
                     break;
                 default:
-                    externalCommand(commandParts, out);
+                    externalCommnad(commandParts,out);
                     break;
             }
-
-            if (out != System.out) {
-                out.close();
-            }
+            
         }
+      
     }
+   
 
-    private static void exitCommand(String[] args) {
-        if (args.length > 1) {
+    private static void exitCommand(String[] commandParts) {
+        if (commandParts.length > 1) {
             System.out.println("exit: too many arguments");
             return;
         }
         System.exit(0);
     }
 
-    private static void echoCommand(String[] args, PrintStream out) {
-        for (int i = 1; i < args.length; i++) {
-            out.print(args[i]);
-            if (i < args.length - 1) out.print(" ");
+
+    private static void echoCommand(String[] commandParts, PrintStream out){
+        StringBuilder message = new StringBuilder();
+        for (int i = 1; i < commandParts.length; i++){
+            message.append(commandParts[i]);
+            if (i < commandParts.length - 1){
+                message.append(" ");
+            }
         }
-        out.println();
+        // System.out.println(message.toString());
+        out.println(message.toString());
     }
 
-    private static void typeCommand(String[] args, PrintStream out) {
-        if (args.length != 2) {
+    private static void typeCommand(String[] commandParts, PrintStream out){
+        if (commandParts.length != 2) {
             System.out.println("type: invalid number of arguments");
             return;
         }
-
-        String target = args[1];
-
-        if (SHELL_BUILTINS.contains(target)) {
-            out.println(target + " is a shell builtin");
-            return;
+        String secondaryCommand = commandParts[1];
+        if(shellBullitin.contains(secondaryCommand)){
+        // if(secondaryCommand.equals(ECHO_COMMAND) || secondaryCommand.equals(TYPE_COMMAND) || secondaryCommand.equals(EXIT_COMMAND)|| secondaryCommand.equals(PWD_COMMAND)){
+            // if statment seems a little redundant but its ok for now.
+            // System.out.println(secondaryCommand + " is a shell builtin");
+            out.println(secondaryCommand + " is a shell builtin");
+        } else {
+            // now to check every directory in PATH for the command
+            String pathEnv = System.getenv("PATH");
+            String[] paths = pathEnv.split(System.getProperty("path.separator"));
+            for (String path : paths) {
+                File dir = new File(path);
+                // check if command exists in this path
+                File commandFile = new File(dir, secondaryCommand);
+                // check if it has execute permissions
+                if(commandFile.exists() && commandFile.canExecute()){
+                    
+                    // System.out.println(secondaryCommand + " is " + commandFile.getAbsolutePath());
+                    out.println(secondaryCommand + " is " + commandFile.getAbsolutePath());
+                    return;
+                }
+            }
+            // System.out.println(secondaryCommand + ": not found");
+            out.println(secondaryCommand + ": not found");
+            
         }
+    }
+    
+    private static void externalCommnad(String[] commandParts, PrintStream out){
 
-        String[] paths = System.getenv("PATH").split(File.pathSeparator);
-        for (String path : paths) {
-            File f = new File(path, target);
-            if (f.exists() && f.canExecute()) {
-                out.println(target + " is " + f.getAbsolutePath());
-                return;
+        String executable = commandParts[0];
+        String pathEnv = System.getenv("PATH"); // im assuming this gets path from 
+        String[] paths = pathEnv.split(System.getProperty("path.separator"));
+
+        for(String path:paths){
+            File dir = new File(path);
+            File commandFile = new File (dir, commandParts[0]);
+            if(commandFile.exists() && commandFile.canExecute()){
+                try {
+
+                    Process process = Runtime.getRuntime().exec(commandParts);
+                    //output this
+                    process.getInputStream().transferTo(System.out);
+                    process.getErrorStream().transferTo(System.err);
+
+                    process.waitFor();
+                    return;
+ 
+                } catch (Exception e) {
+                    System.err.println(e.getMessage());
+                    return;
+                }
             }
         }
 
-        System.out.println(target + ": not found");
+        System.out.println(executable + ": command not found");         
     }
 
-    private static void pwdCommand(PrintStream out) {
+    private static void  pwd_command(PrintStream out){
+        // so the shell always has a current working directory tracked by the OS.
+        // System.out.println(System.getProperty("user.dir"));
         out.println(System.getProperty("user.dir"));
     }
 
-    private static void cdCommand(String[] args) {
-        if (args.length != 2) {
+    private static void cd_command(String[] commandParts){
+        File target;
+        if(commandParts.length != 2){
             System.out.println("cd: invalid number of arguments");
             return;
         }
 
-        String path = args[1];
-        if (path.startsWith("~")) {
-            path = System.getenv("HOME") + path.substring(1);
+        String path = commandParts[1];
+
+        if(path.startsWith("~") || path.startsWith("~/")){
+            String home = System.getenv("HOME");
+            path = home + path.substring(1);}
+        if (new File(path).isAbsolute()) {
+            target = new File(path);
+        }
+        else {
+            String currentDir = System.getProperty("user.dir");
+            target = new File(currentDir, path);
         }
 
-        File target = new File(path);
-        if (!target.isAbsolute()) {
-            target = new File(System.getProperty("user.dir"), path);
-        }
-
-        try {
-            File canonical = target.getCanonicalFile();
-            if (!canonical.exists() || !canonical.isDirectory()) {
-                System.out.println("cd: no such file or directory: " + args[1]);
+        try{
+            File CanonicalFile = target.getCanonicalFile();
+            if(!CanonicalFile.exists() || !CanonicalFile.isDirectory()){
+                System.out.println("cd: no such file or directory: " + path);
                 return;
+            
             }
-            System.setProperty("user.dir", canonical.getAbsolutePath());
-        } catch (Exception e) {
-            System.out.println("cd: error changing directory");
+            System.setProperty("user.dir", CanonicalFile.getAbsolutePath());
+        } 
+        catch (Exception e){
+            System.out.println("cd: error changing directory: " + e.getMessage()); 
         }
     }
 
-    private static void externalCommand(String[] args, PrintStream out) {
-        try {
-            Process process = Runtime.getRuntime().exec(args);
-            process.getInputStream().transferTo(out);
-            process.getErrorStream().transferTo(System.err);
-            process.waitFor();
-        } catch (Exception e) {
-            System.out.println(args[0] + ": command not found");
-        }
-    }
-
-    private static ParsedCommand parseCommand(String input) {
-
+    private static ParsedCommand parseCommand(String input){
         List<String> parts = new ArrayList<>();
-        StringBuilder current = new StringBuilder();
-
+        StringBuilder currentPart = new StringBuilder();
         boolean insideSingleQuote = false;
         boolean insideDoubleQuote = false;
-
         boolean redirectStdout = false;
         String redirectFile = null;
 
-        for (int i = 0; i < input.length(); i++) {
+        for(int i= 0; i < input.length(); i++){
             char c = input.charAt(i);
 
-            if (c == '\'' && !insideDoubleQuote) {
+            if(c == '\''){
+                if(insideDoubleQuote) {
+                    currentPart.append(c);
+                    continue;
+                }
                 insideSingleQuote = !insideSingleQuote;
                 continue;
             }
 
-            if (c == '"' && !insideSingleQuote) {
+            if(c == '"' && !insideSingleQuote){
                 insideDoubleQuote = !insideDoubleQuote;
                 continue;
+            }
+
+            // basically check / escape character
+            if(c == '\\'){
+                if(i + 1 < input.length()){
+                    char nextChar = input.charAt(i + 1);
+                    if(insideSingleQuote || (insideDoubleQuote && (nextChar != '"' && nextChar != '\\'))){
+                        currentPart.append(c);
+                    } else {
+                        currentPart.append(nextChar);
+                        i++; // skip next char as its escaped
+                        continue;
+                    }
+                } else {
+                    currentPart.append(c);
+                }
+                continue;
+            }
+
+            if(c == ' ' && !insideSingleQuote && !insideDoubleQuote){
+                if(currentPart.length() > 0){
+                    parts.add(currentPart.toString());
+                    currentPart.setLength(0);
+                }
+            } else {
+                currentPart.append(c);
             }
 
             if (!insideSingleQuote && !insideDoubleQuote &&
@@ -218,9 +269,9 @@ public class Main {
                 redirectStdout = true;
                 if (c == '1') i++;
 
-                if (current.length() > 0) {
-                    parts.add(current.toString());
-                    current.setLength(0);
+                if (currentPart.length() > 0) {
+                    parts.add(currentPart.toString());
+                    currentPart.setLength(0);
                 }
 
                 i++;
@@ -235,19 +286,11 @@ public class Main {
                 redirectFile = file.toString();
                 break;
             }
-
-            if (c == ' ' && !insideSingleQuote && !insideDoubleQuote) {
-                if (current.length() > 0) {
-                    parts.add(current.toString());
-                    current.setLength(0);
-                }
-            } else {
-                current.append(c);
-            }
         }
+        // TO DO: implement parsing logic to handle quotes and escapes
 
-        if (current.length() > 0) {
-            parts.add(current.toString());
+        if(currentPart.length() > 0){
+            parts.add(currentPart.toString());
         }
 
         ParsedCommand pc = new ParsedCommand();
@@ -256,5 +299,5 @@ public class Main {
         pc.redirectFile = redirectFile;
         return pc;
     }
+   
 }
-

@@ -225,6 +225,8 @@ public class Main {
         boolean insideDoubleQuote = false;
         boolean redirectStdout = false;
         String redirectFile = null;
+        boolean redirectStderr = false;
+        String stderrFile = null;
 
         for(int i= 0; i < input.length(); i++){
             char c = input.charAt(i);

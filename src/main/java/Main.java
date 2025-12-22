@@ -327,6 +327,8 @@ public class Main {
         pc.args = parts.toArray(new String[0]);
         pc.redirectStdout = redirectStdout;
         pc.redirectFile = redirectFile;
+        pc.redirectStderr = redirectStderr;
+        pc.stderrFile = stderrFile;
         return pc;
     }
    

@@ -255,6 +255,29 @@ public class Main {
                 insideDoubleQuote = !insideDoubleQuote;
                 continue;
             }
+
+            if (!insideDoubleQuote && !insideSingleQuote && (c == '2' && i + 1 < input.length() && input.charAt(i + 1) == '>')){
+                redirectStderr = true;
+                i++; // skip '>'
+                while (i < input.length() && input.charAt(i) == ' ') i++;
+
+               
+                if (currentPart.length() > 0) {
+                    parts.add(currentPart.toString());
+                    currentPart.setLength(0);
+                }
+
+                StringBuilder file = new StringBuilder();
+                while (i < input.length() && input.charAt(i) != ' ') {
+                    file.append(input.charAt(i));
+                    i++;
+                }
+
+                stderrFile = file.toString();
+                break;
+
+                
+            }
             if (!insideSingleQuote && !insideDoubleQuote &&
                     (c == '>' || (c == '1' && i + 1 < input.length() && input.charAt(i + 1) == '>'))) {
 
@@ -279,28 +302,7 @@ public class Main {
                 break;
             }
 
-            if (!insideDoubleQuote && !insideSingleQuote && (c == '2' && i + 1 < input.length() && input.charAt(i + 1) == '>')){
-                redirectStderr = true;
-                i++; // skip '>'
-                while (i < input.length() && input.charAt(i) == ' ') i++;
-
-               
-                if (currentPart.length() > 0) {
-                    parts.add(currentPart.toString());
-                    currentPart.setLength(0);
-                }
-
-                StringBuilder file = new StringBuilder();
-                while (i < input.length() && input.charAt(i) != ' ') {
-                    file.append(input.charAt(i));
-                    i++;
-                }
-
-                stderrFile = file.toString();
-                break;
-
-                
-            }
+            
 
             // basically check / escape character
             if(c == '\\'){

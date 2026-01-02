@@ -101,6 +101,7 @@ public class Main {
             } else if ("exit".startsWith(s) && !s.equals("exit")) {
                 buffer.setLength(0);
                 buffer.append("exit ");
+                completed = true;
             }
             else{
                 String exec = findExecutableCompletion(s);

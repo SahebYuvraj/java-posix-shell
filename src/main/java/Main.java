@@ -5,6 +5,22 @@ import java.util.ArrayList;
 import java.util.List;
 public class Main {
 
+/*
+    Using static: (learning)
+    ✔ saves memory
+    ✔ avoids creating objects unnecessarily
+    ✔ makes constants accessible everywhere cleanly
+    ✔ shows conceptually this value is global to the shell
+    static means: this belongs to the CLASS, not to an OBJECT one for all
+    */
+
+    /*
+    Can switch to printf 
+    1) printf is formatting-aware - This scales cleanly.
+    2) printf is platform-independent for newlines
+    3) Performance (small advantage)
+     */
+
     static class ParsedCommand{
         String[] args;
         boolean redirectStdout;
@@ -29,22 +45,7 @@ public class Main {
         } catch (Exception ignored) {}
     }
 
-    /*
-    Using static: (learning)
-    ✔ saves memory
-    ✔ avoids creating objects unnecessarily
-    ✔ makes constants accessible everywhere cleanly
-    ✔ shows conceptually this value is global to the shell
-    static means: this belongs to the CLASS, not to an OBJECT one for all
-    */
-
-    /*
-    Can switch to printf 
-    1) printf is formatting-aware - This scales cleanly.
-    2) printf is platform-independent for newlines
-    3) Performance (small advantage)
-     */
-
+    
     private static final String PROMPT = "$ ";
     private static final String EXIT_COMMAND = "exit";
     private static final String ECHO_COMMAND = "echo";
@@ -91,20 +92,33 @@ public class Main {
          if (ch == '\t' ){
             if (buffer.indexOf(" ") == -1) {
             String s = buffer.toString();
+            boolean completed = false;
+
              if ("echo".startsWith(s) && !s.equals("echo")) {
                 buffer.setLength(0);
                 buffer.append("echo ");
+                completed = true;
             } else if ("exit".startsWith(s) && !s.equals("exit")) {
                 buffer.setLength(0);
                 buffer.append("exit ");
             }
             else{
-                System.out.print("\007");
+                String exec = findExecutableCompletion(s);
+                if (exec != null) {
+                    buffer.setLength(0);
+                    buffer.append(exec).append(" ");
+                    completed = true;
+                }
             }
-            System.out.print("\r\033[2K");
+            if (completed){ 
+                System.out.print("\r\033[2K");
             System.out.print(PROMPT);
             System.out.print(buffer);
-            System.out.flush();
+            System.out.flush();}
+            else{
+                System.out.print("\007");
+            }
+           
          }
 
             continue;
@@ -467,5 +481,27 @@ public class Main {
         }
         return null;
     }
+
+    private static String findExecutableCompletion(String prefix) {
+    String pathEnv = System.getenv("PATH");
+    if (pathEnv == null) return null;
+
+    String[] paths = pathEnv.split(System.getProperty("path.separator"));
+
+    for (String dirPath : paths) {
+        File dir = new File(dirPath);
+        File[] files = dir.listFiles();
+        if (files == null) continue;
+
+        for (File f : files) {
+            if (f.isFile()
+                && f.canExecute()
+                && f.getName().startsWith(prefix)) {
+                return f.getName();
+            }
+        }
+    }
+    return null;
+}
    
 }

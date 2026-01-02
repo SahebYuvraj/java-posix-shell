@@ -98,11 +98,15 @@ public class Main {
                 buffer.setLength(0);
                 buffer.append("exit ");
             }
+            else{
+                System.out.print("\007");
+            }
             System.out.print("\r\033[2K");
             System.out.print(PROMPT);
             System.out.print(buffer);
             System.out.flush();
          }
+
             continue;
 
         }

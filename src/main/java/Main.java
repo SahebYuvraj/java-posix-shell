@@ -64,6 +64,10 @@ public class Main {
         System.out.print(PROMPT);
         System.out.flush();
 
+        boolean tabPending = false;          // did we just press TAB and ring bell for multiple matches?
+        String tabPrefix = null;             // what prefix did that TAB apply to?
+        List<String> tabMatches = new ArrayList<>(); // cached matches for second TAB
+
 
         while(true){
             int ch  = System.in.read();
@@ -71,10 +75,15 @@ public class Main {
             if (ch == '\n' || ch == '\r'){
                 System.out.print("\r\n");
                 System.out.flush();
+
             
 
             String input = buffer.toString().trim();
             buffer.setLength(0);
+            tabPending = false;
+            tabPrefix = null;
+            tabMatches.clear();
+
 
             // if empty line, just show prompt again
             if (input.isEmpty()) {
@@ -103,24 +112,69 @@ public class Main {
                 buffer.append("exit ");
                 completed = true;
             }
-            else{
-                String exec = findExecutableCompletion(s);
-                if (exec != null) {
-                    buffer.setLength(0);
-                    buffer.append(exec).append(" ");
-                    completed = true;
-                }
-            }
-            if (completed){ 
+            if (completed) {
                 System.out.print("\r\033[2K");
-            System.out.print(PROMPT);
-            System.out.print(buffer);
-            System.out.flush();}
-            else{
-                System.out.print("\007");
+                System.out.print(PROMPT);
+                System.out.print(buffer);
+                System.out.flush();
+
+                tabPending = false;
+                tabPrefix = null;
+                tabMatches.clear();
+                continue;
             }
-           
-         }
+            else{
+                List<String> matches = findExecutableCompletion(s);
+
+                 if (matches.isEmpty()) {
+                    // no matches -> bell
+                    System.out.print("\u0007");
+                    System.out.flush();
+
+                    tabPending = false;
+                    tabPrefix = null;
+                    tabMatches.clear();
+                    continue;
+                }
+
+                if (matches.size() == 1) {
+                    // single match -> complete immediately
+                    buffer.setLength(0);
+                    buffer.append(matches.get(0)).append(" ");
+
+                    System.out.print("\r\033[2K");
+                    System.out.print(PROMPT);
+                    System.out.print(buffer);
+                    System.out.flush();
+
+                    tabPending = false;
+                    tabPrefix = null;
+                    tabMatches.clear();
+                    continue;
+                }
+                if (!tabPending || tabPrefix == null || !tabPrefix.equals(s)) {
+                    tabPending = true;
+                    tabPrefix = s;
+                    tabMatches = matches; // cache sorted list
+
+                    System.out.print("\u0007");
+                    System.out.flush();
+                    continue;
+                }
+
+                // second TAB (same prefix): print list, then re-show prompt + prefix
+                System.out.print("\r\n");
+                System.out.print(String.join("  ", tabMatches));
+                System.out.print("\r\n");
+                System.out.print(PROMPT);
+                System.out.print(tabPrefix);
+                System.out.flush();
+
+                // reset after printing
+                tabPending = false;
+                tabPrefix = null;
+                tabMatches.clear();
+            }
 
             continue;
 
@@ -128,6 +182,9 @@ public class Main {
          if (ch == 127 || ch == 8){ // backspace or delete
             if (buffer.length() > 0){
                 buffer.setLength(buffer.length() - 1);
+                tabPending = false;
+                tabPrefix = null;
+                tabMatches.clear();
                 System.out.print("\b \b");
                 System.out.flush();
             }
@@ -136,8 +193,12 @@ public class Main {
 
         if(ch >= 32){
             buffer.append((char) ch);
+            tabPending = false;
+            tabPrefix = null;
+            tabMatches.clear();
             System.out.print((char) ch);
             System.out.flush();
+        }
         }
     }
 }
@@ -483,9 +544,10 @@ public class Main {
         return null;
     }
 
-    private static String findExecutableCompletion(String prefix) {
+    private static List<String> findExecutableCompletion(String prefix) {
+    List<String> matches = new ArrayList<>();
     String pathEnv = System.getenv("PATH");
-    if (pathEnv == null) return null;
+    if (pathEnv == null) return matches;
 
     String[] paths = pathEnv.split(System.getProperty("path.separator"));
 
@@ -498,11 +560,12 @@ public class Main {
             if (f.isFile()
                 && f.canExecute()
                 && f.getName().startsWith(prefix)) {
-                return f.getName();
+                matches.add(f.getName());
             }
         }
     }
-    return null;
+    matches.sort(String::compareTo);
+    return matches;
 }
    
 }

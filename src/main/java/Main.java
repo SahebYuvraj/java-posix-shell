@@ -2,6 +2,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 public class Main {
 
@@ -513,6 +514,7 @@ public class Main {
                 return true;
             }
              List<String> matches = findExecutableCompletion(prefix);
+             Collections.sort(matches);
 
             if (matches.isEmpty()) {
                 state.resetTab();

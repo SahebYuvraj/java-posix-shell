@@ -544,10 +544,10 @@ public class Main {
                 if (i > 0) System.out.print("  "); // two spaces
                 System.out.print(state.tabMatches.get(i));
             }
-            // System.out.print("\r\n");
-            // System.out.print(PROMPT);
-            // System.out.print(prefix);
-            // System.out.flush();
+            System.out.print("\r\n");
+            System.out.print(PROMPT);
+            System.out.print(prefix);
+            System.out.flush();
 
             state.resetTab();
             return true;

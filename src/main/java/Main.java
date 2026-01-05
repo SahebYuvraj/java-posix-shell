@@ -547,7 +547,7 @@ public class Main {
             System.out.print("\r\n");
             System.out.print(PROMPT);
             System.out.print(prefix);
-            System.out.flush();
+            System.out.flush(); 
 
             state.resetTab();
             return true;

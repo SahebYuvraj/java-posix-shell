@@ -77,10 +77,6 @@ public class Main {
         System.out.print(PROMPT);
         System.out.flush();
 
-        boolean tabPending = false;          // did we just press TAB and ring bell for multiple matches?
-        String tabPrefix = null;             // what prefix did that TAB apply to?
-        List<String> tabMatches = new ArrayList<>(); // cached matches for second TAB
-
 
         while(true){
             int ch  = System.in.read();
@@ -529,6 +525,13 @@ public class Main {
             state.resetTab();
             return true;
             }
+            String lcp = longestCommonPrefix(matches);
+            if (lcp.length() > prefix.length()) {
+                buffer.setLength(0);
+                buffer.append(lcp);
+                state.resetTab();
+                return true;
+            }
 
             boolean samePrefix = state.tabPending && prefix.equals(state.tabPrefix);
 
@@ -563,5 +566,21 @@ public class Main {
             System.out.print("\b \b");
             System.out.flush();
         }
+    }
+
+    private static String longestCommonPrefix(List<String> strings) {
+        if (strings.isEmpty()) return "";
+
+        String prefix = strings.get(0);
+        for (int i = 1; i < strings.size(); i++) {
+            String s = strings.get(i);
+            int j = 0;
+            while (j < prefix.length() && j < s.length() && prefix.charAt(j) == s.charAt(j)) {
+                j++;
+            }
+            prefix = prefix.substring(0, j);
+            if (prefix.isEmpty()) break;
+        }
+        return prefix;
     }
 }

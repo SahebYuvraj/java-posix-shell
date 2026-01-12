@@ -52,6 +52,8 @@ public class Main {
     private static final List<String> shellBullitin = List.of(PWD_COMMAND,EXIT_COMMAND,ECHO_COMMAND,TYPE_COMMAND,CD_COMMAND,HISTORY_COMMAND);
     private static final Parser PARSER = new Parser();
     private static final List<String> HISTORY = new ArrayList<>();
+    private static int historyIndex = 0;
+    private static int historyCursor = -1;
 
    
 
@@ -107,6 +109,28 @@ public class Main {
                 System.out.print((char) ch);
                 System.out.flush();
             }
+
+            if (ch == 27) { // ESC
+                int ch2 = System.in.read();
+                int ch3 = System.in.read();
+
+                if (ch2 == 91) { // '['
+                    if (ch3 == 65) { // 'A' = UP
+                        handleHistoryUp(buffer);
+                        continue;
+                    }
+                    if (ch3 == 66) { // 'B' = DOWN
+                        handleHistoryDown(buffer);
+                        continue;
+                    }
+                }
+
+                // Not an arrow sequence we handle
+                System.out.print("\007");
+                System.out.flush();
+                continue;
+            }
+            
     }
 }
 
@@ -347,7 +371,8 @@ public class Main {
 
             // if empty line, just show prompt again
         if (!input.isEmpty()) 
-             HISTORY.add(input);
+            HISTORY.add(input);
+            historyCursor = -1;
             {
             try { runOneCommandLine(input);} 
             catch (Exception e) { System.err.println("Error: " + e.getMessage());}
@@ -636,7 +661,7 @@ public class Main {
 }
 
     private static void history_command(String[] commandParts, PrintStream out){
-        int i = 0;
+        int i = HISTORY.size(); // default to all history
         if (commandParts.length > 1) {
             try {
                 i = Integer.parseInt(commandParts[1]);
@@ -656,6 +681,57 @@ public class Main {
         }
     
     }
+    private static void redrawLine(StringBuilder buffer) {
+        System.out.print("\r\033[2K");     // clear line
+        System.out.print(PROMPT);
+        System.out.print(buffer);
+        System.out.flush();
+    }
+
+private static void handleHistoryUp(StringBuilder buffer) {
+    if (HISTORY.isEmpty()) {
+        System.out.print("\007");
+        System.out.flush();
+        return;
+    }
+
+    // first time pressing up -> go to last entry
+    if (historyCursor == -1) {
+        historyCursor = HISTORY.size() - 1;
+    } else if (historyCursor > 0) {
+        historyCursor--;
+    } else {
+        // already at oldest
+        System.out.print("\007");
+        System.out.flush();
+        return;
+    }
+
+    buffer.setLength(0);
+    buffer.append(HISTORY.get(historyCursor));
+    redrawLine(buffer);
+}
+
+private static void handleHistoryDown(StringBuilder buffer) {
+    if (HISTORY.isEmpty() || historyCursor == -1) {
+        System.out.print("\007");
+        System.out.flush();
+        return;
+    }
+
+    if (historyCursor < HISTORY.size() - 1) {
+        historyCursor++;
+        buffer.setLength(0);
+        buffer.append(HISTORY.get(historyCursor));
+    } else {
+        // move past newest -> empty line
+        historyCursor = -1;
+        buffer.setLength(0);
+    }
+
+    redrawLine(buffer);
+}
+
 
 
 

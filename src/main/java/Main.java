@@ -1,3 +1,4 @@
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -28,15 +29,6 @@ public class Main {
     3) Performance (small advantage)
      */
 
-    static class ParsedCommand{
-        String[] args;
-        boolean redirectStdout;
-        boolean redirectStderr;
-        boolean appendStdout;
-        boolean appendStderr;
-        String redirectFile;
-        String stderrFile;
-    }
 
     static class ShellState {
     boolean tabPending = false;
@@ -49,22 +41,7 @@ public class Main {
         tabMatches = null;
     } 
     }
-
-    private static void setTerminalRawMode() {
-        String[] cmd = {"/bin/sh", "-c", "stty -echo -icanon min 1 < /dev/tty"};
-        try {
-            Runtime.getRuntime().exec(cmd).waitFor();
-        } catch (Exception ignored) {}
-    }
-
-    private static void restoreTerminalMode() {
-        String[] cmd = {"/bin/sh", "-c", "stty sane < /dev/tty"};
-        try {
-            Runtime.getRuntime().exec(cmd).waitFor();
-        } catch (Exception ignored) {}
-    }
-
-    
+  
     private static final String PROMPT = "$ ";
     private static final String EXIT_COMMAND = "exit";
     private static final String ECHO_COMMAND = "echo";
@@ -72,13 +49,14 @@ public class Main {
     private static final String PWD_COMMAND = "pwd";
     private static final String CD_COMMAND = "cd";
     private static final List<String> shellBullitin = List.of(PWD_COMMAND,EXIT_COMMAND,ECHO_COMMAND,TYPE_COMMAND,CD_COMMAND);
+    private static final Parser PARSER = new Parser();
    
 
     public static void main(String[] args) throws Exception {
         // REPL - read eval print loop
-        setTerminalRawMode();
-        Runtime.getRuntime().addShutdownHook(new Thread(Main::restoreTerminalMode));
-
+        TerminalModeController.setRawMode();
+        Runtime.getRuntime().addShutdownHook(new Thread(TerminalModeController::restoreTerminal));
+        
         StringBuilder buffer = new StringBuilder();
         ShellState state = new ShellState();  
         System.out.print(PROMPT);
@@ -131,8 +109,8 @@ public class Main {
 
     private static void runOneCommandLine(String input) throws Exception {
 
-
-            ParsedCommand parsed = parseCommand(input);
+            ParsedCommand parsed = PARSER.parseCommand(input);
+            
             if (parsed.args.length == 0) return; 
             String[] commandParts = parsed.args;
             String command = commandParts[0];
@@ -180,7 +158,7 @@ public class Main {
             
         }
       
-   
+
     private static void exitCommand(String[] commandParts, PrintStream err){ 
         if (commandParts.length > 1) {
             err.println("exit: too many arguments");
@@ -269,9 +247,6 @@ public class Main {
             }
         }
 
-    //     // System.out.println(executable + ": command not found");   
-    //     err.println(executable + ": command not found");      
-    // }
 
     private static void  pwd_command(PrintStream out){
         // so the shell always has a current working directory tracked by the OS.
@@ -315,139 +290,6 @@ public class Main {
             err.println("cd: error changing directory: " + e.getMessage());
             return;
         }
-    }
-
-    private static ParsedCommand parseCommand(String input){
-        List<String> parts = new ArrayList<>();
-        StringBuilder currentPart = new StringBuilder();
-        boolean insideSingleQuote = false;
-        boolean insideDoubleQuote = false;
-        boolean redirectStdout = false;
-        String redirectFile = null;
-        boolean redirectStderr = false;
-        String stderrFile = null;
-        boolean appendStdout = false;
-        boolean appendStderr = false;
-
-        for(int i= 0; i < input.length(); i++){
-            char c = input.charAt(i);
-
-            if(c == '\''){
-                if(insideDoubleQuote) {
-                    currentPart.append(c);
-                    continue;
-                }
-                insideSingleQuote = !insideSingleQuote;
-                continue;
-            }
-
-            if(c == '"' && !insideSingleQuote){
-                insideDoubleQuote = !insideDoubleQuote;
-                continue;
-            }
-
-            if (!insideDoubleQuote && !insideSingleQuote && (c == '2' && i + 1 < input.length() && input.charAt(i + 1) == '>')){
-                redirectStderr = true;
-                 // skip '>'
-                if (currentPart.length() > 0) {
-                    parts.add(currentPart.toString());
-                    currentPart.setLength(0);
-                }
-
-                i++;
-                i++;
-                if (i < input.length() && input.charAt(i) == '>') {
-                    appendStderr = true;
-                    i++; // skip second '>'
-                }
-                
-                while (i < input.length() && input.charAt(i) == ' ') i++;
-
-                StringBuilder file = new StringBuilder();
-                while (i < input.length() && input.charAt(i) != ' ') {
-                    file.append(input.charAt(i));
-                    i++;
-                }
-
-                stderrFile = file.toString();
-                break;
-
-                
-            }
-            if (!insideSingleQuote && !insideDoubleQuote &&
-                    (c == '>' || (c == '1' && i + 1 < input.length() && input.charAt(i + 1) == '>'))) {
-
-                redirectStdout = true;
-                if (c == '1') i++;
-
-                if (i + 1 < input.length() && input.charAt(i + 1) == '>') {
-                appendStdout = true;
-                i++; // skip second '>'
-                }
-
-                if (currentPart.length() > 0) {
-                    parts.add(currentPart.toString());
-                    currentPart.setLength(0);
-                }
-
-                i++;
-                while (i < input.length() && input.charAt(i) == ' ') i++;
-
-                StringBuilder file = new StringBuilder();
-                while (i < input.length() && input.charAt(i) != ' ') {
-                    file.append(input.charAt(i));
-                    i++;
-                }
-
-                redirectFile = file.toString();
-                break;
-            }
-
-            
-
-            // basically check / escape character
-            if(c == '\\'){
-                if(i + 1 < input.length()){
-                    char nextChar = input.charAt(i + 1);
-                    if(insideSingleQuote || (insideDoubleQuote && (nextChar != '"' && nextChar != '\\'))){
-                        currentPart.append(c);
-                    } else {
-                        currentPart.append(nextChar);
-                        i++; // skip next char as its escaped
-                        continue;
-                    }
-                } else {
-                    currentPart.append(c);
-                }
-                continue;
-            }
-
-            if(c == ' ' && !insideSingleQuote && !insideDoubleQuote){
-                if(currentPart.length() > 0){
-                    parts.add(currentPart.toString());
-                    currentPart.setLength(0);
-                }
-            } else {
-                currentPart.append(c);
-            }
-
-            
-        }
-        // TO DO: implement parsing logic to handle quotes and escapes
-
-        if(currentPart.length() > 0){
-            parts.add(currentPart.toString());
-        }
-
-        ParsedCommand pc = new ParsedCommand();
-        pc.args = parts.toArray(new String[0]);
-        pc.redirectStdout = redirectStdout;
-        pc.redirectFile = redirectFile;
-        pc.redirectStderr = redirectStderr;
-        pc.stderrFile = stderrFile;
-        pc.appendStdout = appendStdout;
-        pc.appendStderr = appendStderr;
-        return pc;
     }
 
     private static File findExecutableFile(String command){
@@ -622,33 +464,110 @@ public class Main {
             return;
         }
 
-        ParsedCommand parsed1 = parseCommand(commandParts[0].trim());
-        ParsedCommand parsed2 = parseCommand(commandParts[1].trim());
+        ParsedCommand left = PARSER.parseCommand(commandParts[0].trim());
+        ParsedCommand right = PARSER.parseCommand(commandParts[1].trim());
 
-        ProcessBuilder pb1 = new ProcessBuilder(parsed1.args);
-        ProcessBuilder pb2 = new ProcessBuilder(parsed2.args);
+        boolean leftBuiltin = isBuiltin(left.args[0]);
+        boolean rightBuiltin = isBuiltin(right.args[0]);
 
-        pb1.directory(new File(System.getProperty("user.dir")));
-        pb2.directory(new File(System.getProperty("user.dir")));
+        if(!leftBuiltin && !rightBuiltin){
+            ProcessBuilder pb1 = new ProcessBuilder(left.args);
+            ProcessBuilder pb2 = new ProcessBuilder(right.args);
 
-        Process p1 = pb1.start();
-        Process p2 = pb2.start();
+            pb1.directory(new File(System.getProperty("user.dir")));
+            pb2.directory(new File(System.getProperty("user.dir")));
 
-        Thread t1 = pump(p1.getInputStream(), p2.getOutputStream(), true);
-        Thread t2 = pump(p1.getErrorStream(), err, false);
-        Thread t3 = pump(p2.getErrorStream(), err, false);
-        Thread t4 = pump(p2.getInputStream(), out, false);
+            Process p1 = pb1.start();
+            Process p2 = pb2.start();
+
+            Thread t1 = pump(p1.getInputStream(), p2.getOutputStream(), true);
+            Thread t2 = pump(p1.getErrorStream(), err, false);
+            Thread t3 = pump(p2.getErrorStream(), err, false);
+            Thread t4 = pump(p2.getInputStream(), out, false);
 
 
-        p1.getOutputStream().close();
+            p1.getOutputStream().close();
 
-        p1.waitFor();
-        p2.getOutputStream().close();
-        p2.waitFor();
+            p1.waitFor();
+            p2.getOutputStream().close();
+            p2.waitFor();
 
-        t1.join();
-        t2.join();
-        t3.join();
-        t4.join();
+            t1.join();
+            t2.join();
+            t3.join();
+            t4.join();
+           
+        } 
+        if (leftBuiltin && rightBuiltin) {
+            // Run left, discard its output
+            ByteArrayOutputStream bos = new ByteArrayOutputStream();
+            PrintStream throwAway = new PrintStream(bos);
+            runBuiltin(left, throwAway, err);
+            throwAway.flush();
+
+            // Run right normally
+            runBuiltin(right, out, err);
+        }
+        if (leftBuiltin && !rightBuiltin) {
+            // Run left, capture its output
+            ByteArrayOutputStream bos = new ByteArrayOutputStream();
+            PrintStream ps = new PrintStream(bos);
+            runBuiltin(left, ps, err);
+            ps.flush();
+
+            // Start right process
+            ProcessBuilder pb2 = new ProcessBuilder(right.args);
+            pb2.directory(new File(System.getProperty("user.dir")));
+            Process p2 = pb2.start();
+
+            // Pump left output to right input
+            Thread t1 = pump(new java.io.ByteArrayInputStream(bos.toByteArray()), p2.getOutputStream(), true);
+            Thread t2 = pump(p2.getErrorStream(), err, false);
+            Thread t3 = pump(p2.getInputStream(), out, false);
+
+            p2.getOutputStream().close();
+            p2.waitFor();
+
+            t1.join();
+            t2.join();
+            t3.join();
+        }
+        if (!leftBuiltin && rightBuiltin) {
+            ProcessBuilder pb1 = new ProcessBuilder(left.args);
+            pb1.directory(new File(System.getProperty("user.dir")));
+            Process p1 = pb1.start();
+            
+            ByteArrayOutputStream ignored = new ByteArrayOutputStream();
+            Thread drainStdout = pump(p1.getInputStream(), ignored, true);
+            Thread drainStderr = pump(p1.getErrorStream(), err, false);
+
+            p1.waitFor();
+            drainStdout.join();
+            drainStderr.join();
+
+            // Now run builtin RHS normally
+            runBuiltin(right, out, err);
+            return;
+        }   
     }
+
+    private static boolean isBuiltin(String cmd) {
+    return shellBullitin.contains(cmd);
+    }
+    private static void runBuiltin(ParsedCommand parsed, PrintStream out, PrintStream err) {
+    String[] args = parsed.args;
+    String cmd = args[0];
+
+    switch (cmd) {
+        case EXIT_COMMAND: exitCommand(args, err); break;
+        case ECHO_COMMAND: echoCommand(args, out); break;
+        case TYPE_COMMAND: typeCommand(args, out, err); break;
+        case PWD_COMMAND:  pwd_command(out); break;
+        case CD_COMMAND:   cd_command(args, err); break;
+        default:
+            err.println(cmd + ": command not found");
+        }
+    }
+
+
 }

@@ -1,15 +1,15 @@
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
 import history.History;
+import parse.ParsedCommand;
+import parse.Parser;
+import pipes.PipelineRunner;
 
 
 // a good read for pipes and forks https://beej.us/guide/bgipc/
@@ -158,7 +158,18 @@ public class Main {
 
             if (input.contains("|")) {
                 // runPipelineTwoCommands(input, out, err);
-                runPipeline(input, out, err);
+                // runPipeline(input, out, err);
+                PipelineRunner.run(input, out, err, new PipelineRunner.BullitinRunner() {
+                    @Override
+                    public void run(ParsedCommand parsedCommand, PrintStream out, PrintStream err) throws IOException {
+                        runBuiltin(parsedCommand, out, err);
+                    }
+
+                    @Override
+                    public boolean isShellBuiltin(String commandName) {
+                        return isBuiltin(commandName);
+                    }
+                }, PARSER);
                 return;
             }
 
@@ -487,123 +498,11 @@ public class Main {
         return prefix;
     }
 
-    private static Thread pump(InputStream in, OutputStream out, boolean closeOut) {
-    Thread t = new Thread(() -> {
-        byte[] buf = new byte[8192];
-        int n;
-        try {
-            while ((n = in.read(buf)) != -1) {
-                out.write(buf, 0, n);
-                out.flush();
-            }
-        } catch (IOException ignored) {
-        } finally {
-            try { in.close(); } catch (IOException ignored) {}
-            if (closeOut) {
-                try { out.close(); } catch (IOException ignored) {}
-            }
-        }
-    });
-    t.start();
-    return t;
-}
-    private static void runPipelineTwoCommands(String input, PrintStream out, PrintStream err) throws Exception {
-        String[] commandParts = input.split("\\|", 2);
-        if (commandParts.length != 2) {
-            err.println("Invalid pipeline command");
-            return;
-        }
-
-        ParsedCommand left = PARSER.parseCommand(commandParts[0].trim());
-        ParsedCommand right = PARSER.parseCommand(commandParts[1].trim());
-
-        boolean leftBuiltin = isBuiltin(left.args[0]);
-        boolean rightBuiltin = isBuiltin(right.args[0]);
-
-        if(!leftBuiltin && !rightBuiltin){
-            ProcessBuilder pb1 = new ProcessBuilder(left.args);
-            ProcessBuilder pb2 = new ProcessBuilder(right.args);
-
-            pb1.directory(new File(System.getProperty("user.dir")));
-            pb2.directory(new File(System.getProperty("user.dir")));
-
-            Process p1 = pb1.start();
-            Process p2 = pb2.start();
-
-            Thread t1 = pump(p1.getInputStream(), p2.getOutputStream(), true);
-            Thread t2 = pump(p1.getErrorStream(), err, false);
-            Thread t3 = pump(p2.getErrorStream(), err, false);
-            Thread t4 = pump(p2.getInputStream(), out, false);
-
-
-            p1.getOutputStream().close();
-
-            p1.waitFor();
-            p2.getOutputStream().close();
-            p2.waitFor();
-
-            t1.join();
-            t2.join();
-            t3.join();
-            t4.join();
-           
-        } 
-        if (leftBuiltin && rightBuiltin) {
-            // Run left, discard its output
-            ByteArrayOutputStream bos = new ByteArrayOutputStream();
-            PrintStream throwAway = new PrintStream(bos);
-            runBuiltin(left, throwAway, err);
-            throwAway.flush();
-
-            // Run right normally
-            runBuiltin(right, out, err);
-        }
-        if (leftBuiltin && !rightBuiltin) {
-            // Run left, capture its output
-            ByteArrayOutputStream bos = new ByteArrayOutputStream();
-            PrintStream ps = new PrintStream(bos);
-            runBuiltin(left, ps, err);
-            ps.flush();
-
-            // Start right process
-            ProcessBuilder pb2 = new ProcessBuilder(right.args);
-            pb2.directory(new File(System.getProperty("user.dir")));
-            Process p2 = pb2.start();
-
-            // Pump left output to right input
-            Thread t1 = pump(new java.io.ByteArrayInputStream(bos.toByteArray()), p2.getOutputStream(), true);
-            Thread t2 = pump(p2.getErrorStream(), err, false);
-            Thread t3 = pump(p2.getInputStream(), out, false);
-
-            p2.getOutputStream().close();
-            p2.waitFor();
-
-            t1.join();
-            t2.join();
-            t3.join();
-        }
-        if (!leftBuiltin && rightBuiltin) {
-            ProcessBuilder pb1 = new ProcessBuilder(left.args);
-            pb1.directory(new File(System.getProperty("user.dir")));
-            Process p1 = pb1.start();
-            
-            ByteArrayOutputStream ignored = new ByteArrayOutputStream();
-            Thread drainStdout = pump(p1.getInputStream(), ignored, true);
-            Thread drainStderr = pump(p1.getErrorStream(), err, false);
-
-            p1.waitFor();
-            drainStdout.join();
-            drainStderr.join();
-
-            // Now run builtin RHS normally
-            runBuiltin(right, out, err);
-            return;
-        }   
-    }
 
     private static boolean isBuiltin(String cmd) {
     return shellBullitin.contains(cmd);
     }
+    
     private static void runBuiltin(ParsedCommand parsed, PrintStream out, PrintStream err) {
     String[] args = parsed.args;
     String cmd = args[0];
@@ -620,62 +519,6 @@ public class Main {
         }
     }
 
-    private static void runPipeline(String input, PrintStream out, PrintStream err) throws Exception {
-    String[] segments = input.split("\\|");
-
-    if (segments.length == 2) {
-    runPipelineTwoCommands(input, out, err);
-    return;
-    }
-    
-    // Parse commands
-    List<ParsedCommand> cmds = new ArrayList<>();
-    for (String seg : segments) {
-        ParsedCommand pc = PARSER.parseCommand(seg.trim());
-        if (pc.args.length == 0) return;
-        cmds.add(pc);
-    }
-
-    // For now (this stage): assume all are external commands
-    // Create all processes first
-    List<Process> procs = new ArrayList<>();
-    for (ParsedCommand pc : cmds) {
-        ProcessBuilder pb = new ProcessBuilder(pc.args);
-        pb.directory(new File(System.getProperty("user.dir")));
-        procs.add(pb.start());
-    }
-
-    // Wire pipes between processes: stdout(i) -> stdin(i+1)
-    List<Thread> threads = new ArrayList<>();
-
-    for (int i = 0; i < procs.size() - 1; i++) {
-        Process a = procs.get(i);
-        Process b = procs.get(i + 1);
-        threads.add(pump(a.getInputStream(), b.getOutputStream(), true));
-    }
-
-    // Forward stderr for ALL processes to shell err
-    for (Process p : procs) {
-        threads.add(pump(p.getErrorStream(), err, false));
-    }
-
-    // Forward stdout of LAST process to shell out
-    Process last = procs.get(procs.size() - 1);
-    threads.add(pump(last.getInputStream(), out, false));
-
-    // Close stdin of FIRST process (we're not feeding it anything)
-    procs.get(0).getOutputStream().close();
-
-    // Wait for processes to finish
-    for (Process p : procs) {
-        p.waitFor();
-    }
-
-    // Wait for all pump threads to finish draining
-    for (Thread t : threads) {
-        t.join();
-    }
-}
 
     private static void history_command(String[] commandParts, PrintStream out){
          // default to all history
@@ -704,137 +547,6 @@ public class Main {
             return;
         }
     }
-    // private static void printAllHistory(PrintStream out) {
-    // for (int j = 0; j < HISTORY.size(); j++) {
-    //     out.printf("%5d  %s%n", j + 1, HISTORY.get(j));
-    // }
-    // }
-
-    // private static void readHistoryFromFile(String filename) {
-    //     File file = new File(filename);
-    //     if (!file.exists() || !file.isFile()) {
-    //         System.err.println("history: file not found: " + filename);
-    //         return;
-    //     }
-    //     try (java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.FileReader(file))) {
-    //         String line;
-    //         while ((line = reader.readLine()) != null) {
-    //             HISTORY.add(line);
-    //         }
-    //     } catch (IOException e) {
-    //         System.err.println("history: error reading file: " + e.getMessage());
-    //     }
-    // }
-    // private static void printHistory(String[] commandParts, PrintStream out) {
-    //     int i = HISTORY.size();
-    //     try {
-    //             i = Integer.parseInt(commandParts[1]);
-    //             if (i < 1 || i > HISTORY.size()) {
-    //                 out.println("history: invalid number: " + commandParts[1]);
-    //                 return;
-    //             }
-    //             int start = Math.max(0, HISTORY.size() - i);
-    //             for (int j = start; j < HISTORY.size(); j++) {
-    //             out.println((j + 1) + " " + HISTORY.get(j));
-    //             }
-    //         } catch (NumberFormatException e) {
-    //             out.println("history: invalid number: " + commandParts[1]);
-    //             return;
-    //         }
-
-    // }
-    
-
-// private static void handleHistoryUp(StringBuilder buffer) {
-//     if (HISTORY.isEmpty()) {
-//         System.out.print("\007");
-//         System.out.flush();
-//         return;
-//     }
-
-//     // first time pressing up -> go to last entry
-//     if (historyCursor == -1) {
-//         historyCursor = HISTORY.size() - 1;
-//     } else if (historyCursor > 0) {
-//         historyCursor--;
-//     } else {
-//         // already at oldest
-//         System.out.print("\007");
-//         System.out.flush();
-//         return;
-//     }
-
-//     buffer.setLength(0);
-//     buffer.append(HISTORY.get(historyCursor));
-//     redrawLine(buffer);
-// }
-
-// private static void handleHistoryDown(StringBuilder buffer) {
-//     if (HISTORY.isEmpty() || historyCursor == -1) {
-//         System.out.print("\007");
-//         System.out.flush();
-//         return;
-//     }
-
-//     if (historyCursor < HISTORY.size() - 1) {
-//         historyCursor++;
-//         buffer.setLength(0);
-//         buffer.append(HISTORY.get(historyCursor));
-//     } else {
-//         // move past newest -> empty line
-//         historyCursor = -1;
-//         buffer.setLength(0);
-//     }
-
-//     redrawLine(buffer);
-// }
-// private static void writeHistoryToFile(String filename) {
-//     File file = new File(filename);
-//     try (java.io.BufferedWriter writer = new java.io.BufferedWriter(new java.io.FileWriter(file))) {
-//         for (String entry : HISTORY) {
-//             writer.write(entry);
-//             writer.newLine();
-//         }
-//     } catch (IOException e) {
-//         System.err.println("history: error writing to file: " + e.getMessage());
-//     }
-// }
-    // private static void appendHistoryToFile(String filename) {
-    //     File file = new File(filename);
-    //     try (java.io.BufferedWriter writer =
-    //             new java.io.BufferedWriter(new java.io.FileWriter(file, true))) {
-
-    //         for (int i = historyAppendedUpTo; i < HISTORY.size(); i++) {
-    //             String entry = HISTORY.get(i);
-    //             if (entry.trim().isEmpty()) continue;
-    //             writer.write(entry);
-    //             writer.newLine();
-    //         }
-
-    //         // IMPORTANT: advance the pointer after successful write
-    //         historyAppendedUpTo = HISTORY.size();
-
-    //     } catch (IOException e) {
-    //         System.err.println("history: error appending to file: " + e.getMessage());
-    //     }
-    // }
-
-    // private static void loadHistoryFromFile(String filename) {
-    //     File file = new File(filename);
-    //     if (!file.exists() || !file.isFile()) {
-    //         return;
-    //     }
-    //     try (java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.FileReader(file))) {
-    //         String line;
-    //         while ((line = reader.readLine()) != null) {
-    //             HISTORY.add(line);
-    //         }
-    //         // Set the pointer to the end of the loaded history
-    //         historyAppendedUpTo = HISTORY.size();
-    //     } catch (IOException e) {
-    //         System.err.println("history: error loading from file: " + e.getMessage());
-    //     }
-    // }
 
     private static void redrawLine(StringBuilder buffer) {
         System.out.print("\r\033[2K");     // clear line
@@ -858,11 +570,5 @@ public class Main {
         buffer.append(line);
         redrawLine(buffer);
     }
-
-    
-
-
-
-
 
 }

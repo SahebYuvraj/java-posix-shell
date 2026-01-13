@@ -1,3 +1,5 @@
+package parse;
+
 public final class ParsedCommand {
     public final String[] args;
     public final boolean redirectStdout;

@@ -54,9 +54,10 @@ public class Main {
     private static final List<String> HISTORY = new ArrayList<>();
     private static int historyIndex = 0;
     private static int historyCursor = -1;
+    private static int historyAppendedUpTo = 0; 
+
 
    
-
     public static void main(String[] args) throws Exception {
         // REPL - read eval print loop
         TerminalModeController.setRawMode();
@@ -679,6 +680,10 @@ public class Main {
             writeHistoryToFile(commandParts[2]);
             return;
         }
+        if (commandParts.length >= 3 && commandParts[1].equals("-a")) {
+            appendHistoryToFile(commandParts[2]);
+            return;
+        }
     }
     private static void printAllHistory(PrintStream out) {
     for (int j = 0; j < HISTORY.size(); j++) {
@@ -780,6 +785,26 @@ private static void writeHistoryToFile(String filename) {
         System.err.println("history: error writing to file: " + e.getMessage());
     }
 }
+    private static void appendHistoryToFile(String filename) {
+        File file = new File(filename);
+        try (java.io.BufferedWriter writer =
+                new java.io.BufferedWriter(new java.io.FileWriter(file, true))) {
+
+            for (int i = historyAppendedUpTo; i < HISTORY.size(); i++) {
+                String entry = HISTORY.get(i);
+                if (entry.trim().isEmpty()) continue;
+                writer.write(entry);
+                writer.newLine();
+            }
+
+            // IMPORTANT: advance the pointer after successful write
+            historyAppendedUpTo = HISTORY.size();
+
+        } catch (IOException e) {
+            System.err.println("history: error appending to file: " + e.getMessage());
+        }
+    }
+
 
 
 

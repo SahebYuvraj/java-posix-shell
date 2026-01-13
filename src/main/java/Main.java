@@ -9,6 +9,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import history.History;
+
 
 // a good read for pipes and forks https://beej.us/guide/bgipc/
 public class Main {
@@ -51,9 +53,11 @@ public class Main {
     private static final String HISTORY_COMMAND = "history";
     private static final List<String> shellBullitin = List.of(PWD_COMMAND,EXIT_COMMAND,ECHO_COMMAND,TYPE_COMMAND,CD_COMMAND,HISTORY_COMMAND);
     private static final Parser PARSER = new Parser();
-    private static final List<String> HISTORY = new ArrayList<>();
-    private static int historyCursor = -1;
-    private static int historyAppendedUpTo = 0; 
+    // private static final List<String> HISTORY = new ArrayList<>();
+    // private static int historyCursor = -1;
+    // private static int historyAppendedUpTo = 0; 
+    private static final History HISTORY = new History();
+
     
 
 
@@ -70,7 +74,8 @@ public class Main {
 
         String histFile = System.getenv("HISTFILE");
         if (histFile != null) {
-            loadHistoryFromFile(histFile);
+            // loadHistoryFromFile(histFile);
+            HISTORY.loadIfExists(histFile);
         }
 
 
@@ -203,7 +208,8 @@ public class Main {
         }
         String histFile = System.getenv("HISTFILE");
         if (histFile != null) {
-            appendHistoryToFile(histFile);
+            // appendHistoryToFile(histFile);
+            HISTORY.appendToFile(histFile);
         }
         System.exit(0);
         
@@ -382,8 +388,8 @@ public class Main {
 
             // if empty line, just show prompt again
         if (!input.isEmpty()) 
-            HISTORY.add(input);
-            historyCursor = -1;
+            HISTORY.addEntry(input);
+            // historyCursor = -1;
             {
             try { runOneCommandLine(input);} 
             catch (Exception e) { System.err.println("Error: " + e.getMessage());}
@@ -674,163 +680,186 @@ public class Main {
     private static void history_command(String[] commandParts, PrintStream out){
          // default to all history
         if (commandParts.length == 1) {
-            printAllHistory(out);
+            HISTORY.printAll(out);
             return;
         }
         if (commandParts.length == 2) {
-                printHistory(commandParts, out);
+                HISTORY.printLastN(out, Integer.parseInt(commandParts[1]));
                 return;
            }
         
         if (commandParts.length == 3 && commandParts[1].equals("-r")) {
-            readHistoryFromFile(commandParts[2]);
+            HISTORY.readFromFile(commandParts[2]);
+            // readHistoryFromFile(commandParts[2]);
             return;
         }
         if (commandParts.length >= 3 && commandParts[1].equals("-w")) {
-            writeHistoryToFile(commandParts[2]);
+            HISTORY.writeToFile(commandParts[2]);
+            // writeHistoryToFile(commandParts[2]);
             return;
         }
         if (commandParts.length >= 3 && commandParts[1].equals("-a")) {
-            appendHistoryToFile(commandParts[2]);
+            HISTORY.appendToFile(commandParts[2]);
+            // appendHistoryToFile(commandParts[2]);
             return;
         }
     }
-    private static void printAllHistory(PrintStream out) {
-    for (int j = 0; j < HISTORY.size(); j++) {
-        out.printf("%5d  %s%n", j + 1, HISTORY.get(j));
-    }
-    }
+    // private static void printAllHistory(PrintStream out) {
+    // for (int j = 0; j < HISTORY.size(); j++) {
+    //     out.printf("%5d  %s%n", j + 1, HISTORY.get(j));
+    // }
+    // }
 
-    private static void readHistoryFromFile(String filename) {
-        File file = new File(filename);
-        if (!file.exists() || !file.isFile()) {
-            System.err.println("history: file not found: " + filename);
-            return;
-        }
-        try (java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.FileReader(file))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                HISTORY.add(line);
-            }
-        } catch (IOException e) {
-            System.err.println("history: error reading file: " + e.getMessage());
-        }
-    }
-    private static void printHistory(String[] commandParts, PrintStream out) {
-        int i = HISTORY.size();
-        try {
-                i = Integer.parseInt(commandParts[1]);
-                if (i < 1 || i > HISTORY.size()) {
-                    out.println("history: invalid number: " + commandParts[1]);
-                    return;
-                }
-                int start = Math.max(0, HISTORY.size() - i);
-                for (int j = start; j < HISTORY.size(); j++) {
-                out.println((j + 1) + " " + HISTORY.get(j));
-                }
-            } catch (NumberFormatException e) {
-                out.println("history: invalid number: " + commandParts[1]);
-                return;
-            }
+    // private static void readHistoryFromFile(String filename) {
+    //     File file = new File(filename);
+    //     if (!file.exists() || !file.isFile()) {
+    //         System.err.println("history: file not found: " + filename);
+    //         return;
+    //     }
+    //     try (java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.FileReader(file))) {
+    //         String line;
+    //         while ((line = reader.readLine()) != null) {
+    //             HISTORY.add(line);
+    //         }
+    //     } catch (IOException e) {
+    //         System.err.println("history: error reading file: " + e.getMessage());
+    //     }
+    // }
+    // private static void printHistory(String[] commandParts, PrintStream out) {
+    //     int i = HISTORY.size();
+    //     try {
+    //             i = Integer.parseInt(commandParts[1]);
+    //             if (i < 1 || i > HISTORY.size()) {
+    //                 out.println("history: invalid number: " + commandParts[1]);
+    //                 return;
+    //             }
+    //             int start = Math.max(0, HISTORY.size() - i);
+    //             for (int j = start; j < HISTORY.size(); j++) {
+    //             out.println((j + 1) + " " + HISTORY.get(j));
+    //             }
+    //         } catch (NumberFormatException e) {
+    //             out.println("history: invalid number: " + commandParts[1]);
+    //             return;
+    //         }
 
-    }
+    // }
+    
+
+// private static void handleHistoryUp(StringBuilder buffer) {
+//     if (HISTORY.isEmpty()) {
+//         System.out.print("\007");
+//         System.out.flush();
+//         return;
+//     }
+
+//     // first time pressing up -> go to last entry
+//     if (historyCursor == -1) {
+//         historyCursor = HISTORY.size() - 1;
+//     } else if (historyCursor > 0) {
+//         historyCursor--;
+//     } else {
+//         // already at oldest
+//         System.out.print("\007");
+//         System.out.flush();
+//         return;
+//     }
+
+//     buffer.setLength(0);
+//     buffer.append(HISTORY.get(historyCursor));
+//     redrawLine(buffer);
+// }
+
+// private static void handleHistoryDown(StringBuilder buffer) {
+//     if (HISTORY.isEmpty() || historyCursor == -1) {
+//         System.out.print("\007");
+//         System.out.flush();
+//         return;
+//     }
+
+//     if (historyCursor < HISTORY.size() - 1) {
+//         historyCursor++;
+//         buffer.setLength(0);
+//         buffer.append(HISTORY.get(historyCursor));
+//     } else {
+//         // move past newest -> empty line
+//         historyCursor = -1;
+//         buffer.setLength(0);
+//     }
+
+//     redrawLine(buffer);
+// }
+// private static void writeHistoryToFile(String filename) {
+//     File file = new File(filename);
+//     try (java.io.BufferedWriter writer = new java.io.BufferedWriter(new java.io.FileWriter(file))) {
+//         for (String entry : HISTORY) {
+//             writer.write(entry);
+//             writer.newLine();
+//         }
+//     } catch (IOException e) {
+//         System.err.println("history: error writing to file: " + e.getMessage());
+//     }
+// }
+    // private static void appendHistoryToFile(String filename) {
+    //     File file = new File(filename);
+    //     try (java.io.BufferedWriter writer =
+    //             new java.io.BufferedWriter(new java.io.FileWriter(file, true))) {
+
+    //         for (int i = historyAppendedUpTo; i < HISTORY.size(); i++) {
+    //             String entry = HISTORY.get(i);
+    //             if (entry.trim().isEmpty()) continue;
+    //             writer.write(entry);
+    //             writer.newLine();
+    //         }
+
+    //         // IMPORTANT: advance the pointer after successful write
+    //         historyAppendedUpTo = HISTORY.size();
+
+    //     } catch (IOException e) {
+    //         System.err.println("history: error appending to file: " + e.getMessage());
+    //     }
+    // }
+
+    // private static void loadHistoryFromFile(String filename) {
+    //     File file = new File(filename);
+    //     if (!file.exists() || !file.isFile()) {
+    //         return;
+    //     }
+    //     try (java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.FileReader(file))) {
+    //         String line;
+    //         while ((line = reader.readLine()) != null) {
+    //             HISTORY.add(line);
+    //         }
+    //         // Set the pointer to the end of the loaded history
+    //         historyAppendedUpTo = HISTORY.size();
+    //     } catch (IOException e) {
+    //         System.err.println("history: error loading from file: " + e.getMessage());
+    //     }
+    // }
+
     private static void redrawLine(StringBuilder buffer) {
         System.out.print("\r\033[2K");     // clear line
         System.out.print(PROMPT);
         System.out.print(buffer);
         System.out.flush();
     }
-
-private static void handleHistoryUp(StringBuilder buffer) {
-    if (HISTORY.isEmpty()) {
-        System.out.print("\007");
-        System.out.flush();
-        return;
-    }
-
-    // first time pressing up -> go to last entry
-    if (historyCursor == -1) {
-        historyCursor = HISTORY.size() - 1;
-    } else if (historyCursor > 0) {
-        historyCursor--;
-    } else {
-        // already at oldest
-        System.out.print("\007");
-        System.out.flush();
-        return;
-    }
-
-    buffer.setLength(0);
-    buffer.append(HISTORY.get(historyCursor));
-    redrawLine(buffer);
-}
-
-private static void handleHistoryDown(StringBuilder buffer) {
-    if (HISTORY.isEmpty() || historyCursor == -1) {
-        System.out.print("\007");
-        System.out.flush();
-        return;
-    }
-
-    if (historyCursor < HISTORY.size() - 1) {
-        historyCursor++;
+    
+    private static void handleHistoryUp(StringBuilder buffer) {
+        String line = HISTORY.getPrevious();
+        if (line == null) { System.out.print("\007"); System.out.flush(); return; }
         buffer.setLength(0);
-        buffer.append(HISTORY.get(historyCursor));
-    } else {
-        // move past newest -> empty line
-        historyCursor = -1;
+        buffer.append(line);
+        redrawLine(buffer);
+    }
+
+    private static void handleHistoryDown(StringBuilder buffer) {
+        String line = HISTORY.getNext();
+        if (line == null) { System.out.print("\007"); System.out.flush(); return; }
         buffer.setLength(0);
+        buffer.append(line);
+        redrawLine(buffer);
     }
 
-    redrawLine(buffer);
-}
-private static void writeHistoryToFile(String filename) {
-    File file = new File(filename);
-    try (java.io.BufferedWriter writer = new java.io.BufferedWriter(new java.io.FileWriter(file))) {
-        for (String entry : HISTORY) {
-            writer.write(entry);
-            writer.newLine();
-        }
-    } catch (IOException e) {
-        System.err.println("history: error writing to file: " + e.getMessage());
-    }
-}
-    private static void appendHistoryToFile(String filename) {
-        File file = new File(filename);
-        try (java.io.BufferedWriter writer =
-                new java.io.BufferedWriter(new java.io.FileWriter(file, true))) {
-
-            for (int i = historyAppendedUpTo; i < HISTORY.size(); i++) {
-                String entry = HISTORY.get(i);
-                if (entry.trim().isEmpty()) continue;
-                writer.write(entry);
-                writer.newLine();
-            }
-
-            // IMPORTANT: advance the pointer after successful write
-            historyAppendedUpTo = HISTORY.size();
-
-        } catch (IOException e) {
-            System.err.println("history: error appending to file: " + e.getMessage());
-        }
-    }
-
-    private static void loadHistoryFromFile(String filename) {
-        File file = new File(filename);
-        if (!file.exists() || !file.isFile()) {
-            return;
-        }
-        try (java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.FileReader(file))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                HISTORY.add(line);
-            }
-            // Set the pointer to the end of the loaded history
-            historyAppendedUpTo = HISTORY.size();
-        } catch (IOException e) {
-            System.err.println("history: error loading from file: " + e.getMessage());
-        }
-    }
+    
 
 
 

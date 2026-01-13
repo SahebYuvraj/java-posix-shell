@@ -675,6 +675,10 @@ public class Main {
             readHistoryFromFile(commandParts[2]);
             return;
         }
+        if (commandParts.length >= 3 && commandParts[1].equals("-w")) {
+            writeHistoryToFile(commandParts[2]);
+            return;
+        }
     }
     private static void printAllHistory(PrintStream out) {
     for (int j = 0; j < HISTORY.size(); j++) {
@@ -764,6 +768,17 @@ private static void handleHistoryDown(StringBuilder buffer) {
     }
 
     redrawLine(buffer);
+}
+private static void writeHistoryToFile(String filename) {
+    File file = new File(filename);
+    try (java.io.BufferedWriter writer = new java.io.BufferedWriter(new java.io.FileWriter(file))) {
+        for (String entry : HISTORY) {
+            writer.write(entry);
+            writer.newLine();
+        }
+    } catch (IOException e) {
+        System.err.println("history: error writing to file: " + e.getMessage());
+    }
 }
 
 

@@ -52,7 +52,6 @@ public class Main {
     private static final List<String> shellBullitin = List.of(PWD_COMMAND,EXIT_COMMAND,ECHO_COMMAND,TYPE_COMMAND,CD_COMMAND,HISTORY_COMMAND);
     private static final Parser PARSER = new Parser();
     private static final List<String> HISTORY = new ArrayList<>();
-    private static int historyIndex = 0;
     private static int historyCursor = -1;
     private static int historyAppendedUpTo = 0; 
 
@@ -67,6 +66,11 @@ public class Main {
         ShellState state = new ShellState();  
         System.out.print(PROMPT);
         System.out.flush();
+
+        String histFile = System.getenv("HISTFILE");
+        if (histFile != null) {
+            loadHistoryFromFile(histFile);
+        }
 
 
         while(true){
@@ -196,7 +200,12 @@ public class Main {
             err.println("exit: too many arguments");
             return;
         }
+        String histFile = System.getenv("HISTFILE");
+        if (histFile != null) {
+            writeHistoryToFile(histFile);
+        }
         System.exit(0);
+        
     }
 
 
@@ -802,6 +811,23 @@ private static void writeHistoryToFile(String filename) {
 
         } catch (IOException e) {
             System.err.println("history: error appending to file: " + e.getMessage());
+        }
+    }
+
+    private static void loadHistoryFromFile(String filename) {
+        File file = new File(filename);
+        if (!file.exists() || !file.isFile()) {
+            return;
+        }
+        try (java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.FileReader(file))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                HISTORY.add(line);
+            }
+            // Set the pointer to the end of the loaded history
+            historyAppendedUpTo = HISTORY.size();
+        } catch (IOException e) {
+            System.err.println("history: error loading from file: " + e.getMessage());
         }
     }
 

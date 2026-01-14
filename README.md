@@ -124,8 +124,8 @@ src/main/java/
 - Maven
 
 ### Run
-- git clone https://github.com/<your-username>/codecrafters-shell-java.git
-- cd codecrafters-shell-java
+- git git clone https://github.com/<your-username>/java-posix-shell.git
+- cd java-posix-shell
 - mvn clean package
 ```bash
 ./your_program.sh

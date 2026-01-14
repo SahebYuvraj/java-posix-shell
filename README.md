@@ -70,3 +70,7 @@ Design Notes
 - Improved parser to handle complex quoting and escaping
 - Job control (fg, bg, signals)
 - Refactoring toward a more instance-based architecture for extensibility
+
+### CodeCrafters Ranking
+
+At the time of completion, this solution ranked **#154 globally** on the CodeCrafters leaderboard for the *Build Your Own Shell* challenge.

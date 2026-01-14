@@ -53,23 +53,20 @@ src/main/java/
 - Maven
 
 ### Run
-git clone https://github.com/<your-username>/codecrafters-shell-java.git
-cd codecrafters-shell-java
-mvn clean package
+- git clone https://github.com/<your-username>/codecrafters-shell-java.git
+- cd codecrafters-shell-java
+- mvn clean package
 ```bash
 ./your_program.sh
 ```
 
 Design Notes
-The shell uses a static-oriented design to simplify global shell state management.
-Command parsing and execution are separated to keep responsibilities clear.
-Error handling is intentionally minimal to match typical shell behavior.
-This implementation prioritizes correctness and learning over extensibility or performance optimizations.
-Limitations & Future Improvements
-More robust error reporting and diagnostics
-Improved parser to handle complex quoting and escaping
-Job control (fg, bg, signals)
-Refactoring toward a more instance-based architecture for extensibility
-About CodeCrafters
-This project was developed as part of the
-CodeCrafters “Build Your Own Shell” challenge.
+- The shell uses a static-oriented design to simplify global shell state management.
+- Command parsing and execution are separated to keep responsibilities clear.
+- Error handling is intentionally minimal to match typical shell behavior.
+- This implementation prioritizes correctness and learning over extensibility or performance optimizations.
+- Limitations & Future Improvements
+- More robust error reporting and diagnostics
+- Improved parser to handle complex quoting and escaping
+- Job control (fg, bg, signals)
+- Refactoring toward a more instance-based architecture for extensibility
